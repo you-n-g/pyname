@@ -30,25 +30,27 @@ def flatten_obj(obj, parent_key="", sep=FLAT_SEP, squeeze=True) -> dict:
     Flatten a nested dict.
 
     Args:
-        obj: the dict waiting for flatting
+        obj: the dict waiting for flatting; It has been converted to basic object by convert2basic.
         parent_key (str, optional): the parent key, will be a prefix in new key. Defaults to "".
         sep (str, optional): the separator for string connecting.
 
     Returns:
         dict: flatten dict
     """
-
     def get_new_key(parent_key, k):
         return parent_key + sep + str(k) if parent_key else k
 
     items = []
     if isinstance(obj, collections.abc.MutableMapping):
         items = list(obj.items())
-    elif isinstance(obj, (list, tuple)) and any(not is_leaf_node(i) for i in obj):
-        # For a list, if all element is basic, we prefer to not convert it to a dict
+    elif is_leaf_node(obj) or isinstance(obj, (list, tuple)) and all(is_leaf_node(i) for i in obj) and len(obj) > 1:
+        # For long basic object, we return the list directly
+        return {parent_key: obj}
+    elif isinstance(obj, (list, tuple)):
+        # If there any node is not leaf node, we continue to expand it recursively
         items = [(i, v) for i, v in enumerate(obj)]
     else:
-        return {parent_key: obj}
+        raise NotImplementedError(f"This type of input is not supported; Please use `convert2basic` to convert it to basic type first")
 
     res = []
     if len(items) == 1 and squeeze:
@@ -77,14 +79,11 @@ def clear_prev_obj_l():
 
 
 def is_leaf_node(obj):
-    return isinstance(obj, (str, int, float))
+    return isinstance(obj, (str, int, float, bool)) or obj is None
 
 def convert_leaf_node(obj):
     if is_leaf_node(obj):
         return obj
-    elif isinstance(obj, argparse.Namespace):
-        # NOTE: assumption, all the info in argparse.Namespace are basic info
-        return {"args": obj._get_args(), "kwargs": dict(obj._get_kwargs())}
     else:
         raise ValueError("Fail to converting leave node")
 
@@ -97,12 +96,14 @@ def convert2basic(obj):
         pass
 
     # Not leaf node
-    if isinstance(obj, list):
-        return [convert2basic(i) for i in obj]
-    elif isinstance(obj, tuple):
+    if isinstance(obj, (list, tuple)):
+        # Because we want to make it hashable.
+        # So list will be converted to tuple
         return tuple(convert2basic(i) for i in obj)
     elif isinstance(obj, dict):
         return {convert2basic(k): convert2basic(v) for k, v in obj.items()}
+    elif isinstance(obj, argparse.Namespace):
+        return {"args": convert2basic(obj._get_args()), "kwargs": convert2basic(dict(obj._get_kwargs()))}
     else:
         raise NotImplementedError(f"This type of input is not supported")
 
@@ -139,10 +140,18 @@ def get_short_name(obj: dict):
     return ",".join(f"{_reverse(k)}={v}" for k, v in new_dict.items())
 
 
-class opt:
-    # TODO: user can config sth in the __init__ function
+class NameIt:
+    """
+    Config and name it!!
+    - config by `__init__`
+    - name it by `__call__`
+    """
     # TODO: get a batch of name
-    def nameit(self, *args, **kwargs) -> str:
+    def __init__(self, save=True):
+        self.save = save
+        # TODO: user can config sth in the __init__ function
+
+    def __call__(self, *args, **kwargs) -> str:
         """
         given any objects, give it an dirty name!!!!
 
@@ -152,8 +161,9 @@ class opt:
             the name of objects
         """
         obj = convert2basic({"args": args, "kwargs": kwargs})
-        with (HIST_PATH / str(uuid4())).open("wb") as f:
-            pickle.dump(obj, f)
+        if self.save:
+            with (HIST_PATH / str(uuid4())).open("wb") as f:
+                pickle.dump(obj, f)
 
         obj = flatten_obj(obj)
 
@@ -163,7 +173,7 @@ class opt:
             return name
 
         # if the name is long. Then try to find its specialness
-        skip = 1
+        skip = 1 if self.save else 0  # the name itself should not be saved.
         while True:  # try to find the special part
             prev_obj_l = get_prev_obj_l(skip=skip)  # skip the one we saved just now
             # only keep the important part of object
@@ -183,18 +193,21 @@ class opt:
                     uniq_info[k] = v
                 else:
                     # The new value is totally different from previous
-                    if len(prev_res[k]) == 1 and next(iter(prev_res[k])) != v:
+                    if len(prev_res[k]) > 1 or len(prev_res[k]) == 1 and next(iter(prev_res[k])) != v:
                         uniq_info[k] = v
             if len(uniq_info) > 0:
                 return get_short_name(uniq_info)
             skip += 1
+# syntax sugar;
+# - so you can call it by pn.opt(...)(obj)
+opt = NameIt
 
 
 class CallableModule(ModuleType):
     """Make it callable"""
 
     def __call__(self, *args, **kwargs):
-        return opt().nameit(*args, **kwargs)
+        return opt()(*args, **kwargs)
 
 
 sys.modules[__name__].__class__ = CallableModule
