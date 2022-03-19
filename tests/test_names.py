@@ -6,37 +6,44 @@ import pyname as pn
 class NameIt(unittest.TestCase):
 
     def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
+        self.hist_path = "~/.pyname/test/"
+        self.pn = pn.opt(hist_path=self.hist_path)
 
     def to_str(self, obj):
         return "".join(str(obj).split())
 
+    def check_same(self, a, b):
+        return self.to_str(a) == self.to_str(b)
+
     def test_name(self):
-        pn.clear_prev_obj_l()
-        print(pn("test"))
-        print(pn(xixi="hah"))
+        self.pn.clear_prev_obj_l()
+        print(self.pn("test"))
+        print(self.pn(xixi="hah"))
 
         # FIXME: It fails to create name without ambiguity for `good` and `good2`
         # My idea is to remove all the shared name at first
-        print(pn("test", "jjj", "repeat",  good2="xxx", good="xixi"))
-        print(pn("test", "xx", "repeat", good2="xxx", good="xixi"))
+        print(self.pn("test", "jjj", "repeat",  good2="xxx", good="xixi"))
+        print(self.pn("test", "xx", "repeat", good2="xxx", good="xixi"))
 
     def test_get_long_name(self):
-        pn.clear_prev_obj_l()
+        self.pn.clear_prev_obj_l()
         info = {i: i for i in range(1000)}
-        print(pn(info))
 
-        info[20] = "a"
+        self.check_same("0=0,1=1,2=2,3=3,4=4", self.pn(info))
 
-        print(pn(info))
-        print(pn(info))
+        for i in range(70, 75):
+            info[i] = "a"
+        expect = "70=a,71=a,72=a,73=a,74=a"
+        self.check_same(expect, self.pn(info))
+
+        info[99] = "b"
+        expect = "9=b,70=a,71=a,72=a,73=a,74=a"
+        self.check_same(expect, self.pn(info))
 
     def test_shorten_list(self):
-        print(pn.opt(save=False)({"a": [1, 2]}))
-        print(pn.opt(save=False)(b={"a": []}))
+        self.pn.clear_prev_obj_l()
+        print(self.pn({"a": [1, 2]}))
+        print(self.pn(b={"a": []}))
 
     def test_convert_basic(self):
         obj = {
@@ -77,7 +84,7 @@ class NameIt(unittest.TestCase):
             'args.kwargs.test_seg': None,
             'args.kwargs.train_start': 0
         }
-        print(pn.convert2basic(obj))
+        print(self.pn.convert2basic(obj))
 
         obj = {
             'args': ({
@@ -125,7 +132,7 @@ class NameIt(unittest.TestCase):
             }, ),
             'kwargs': {}
         }
-        print(pn.convert2basic(obj))
+        print(self.pn.convert2basic(obj))
     # TODO:
     # def test_general_object(self):..
 

@@ -13,7 +13,6 @@ For any Python objects, give it a quick dirty name!
 
 
 # How it works
-
 It follows the following steps.
 - Create a basic object based on the object (e.g. the NameSpace object created by `argparse` will be converted to dict)
 - then create a name based on it.
