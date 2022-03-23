@@ -54,7 +54,10 @@ def flatten_obj(obj, parent_key="", sep=FLAT_SEP, squeeze=True) -> dict:
         raise NotImplementedError(f"This type of input is not supported; Please use `convert2basic` to convert it to basic type first")
 
     res = []
-    if len(items) == 1 and squeeze:
+    if len(items) == 1 and squeeze and isinstance(obj, (list, tuple)):
+        # NOTE:
+        # only data like {"good": ["haha"]}  will be squeezed (return {"good": "haha"} instead of {"good.0": "haha"})
+        # {"good":  {"xixi": "hah"}} will not be squeezed.  We think the inner most key represents the most uniqueness
         res.extend(flatten_obj(items[0][1], parent_key, sep=sep).items())
     else:
         for k, v in items:
@@ -116,7 +119,7 @@ def get_short_name(obj: dict, order_getter: Callable=None):
     new_dict = collections.OrderedDict()
     min_len = 2
     for k, k_rev in zip(keys, keys_rev):
-        for i in range(min(1, len(k_rev)), len(k_rev) + 1):  # TODO: make it smarter
+        for i in range(min(min_len, len(k_rev)), len(k_rev) + 1):  # TODO: make it smarter
             # 1) Don't stop at separate
             if k_rev[i - 1] == ".":
                 continue

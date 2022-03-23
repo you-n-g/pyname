@@ -45,6 +45,13 @@ class NameIt(unittest.TestCase):
         print(self.pn({"a": [1, 2]}))
         print(self.pn(b={"a": []}))
 
+    def test_squeeze(self):
+        self.pn.clear_prev_obj_l()
+        expect = "go=haha"
+        self.check_same(self.pn({"good": ["haha"]}), expect)
+        expect = "xi=hah"
+        self.check_same(self.pn({"good": {"xixi": "hah"}}), expect)
+
     def test_convert_basic(self):
         obj = {
             'args.args': [],
