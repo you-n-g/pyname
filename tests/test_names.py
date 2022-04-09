@@ -101,7 +101,7 @@ class NameIt(unittest.TestCase):
             'args.kwargs.test_seg': None,
             'args.kwargs.train_start': 0
         }
-        print(self.pn.convert2basic(obj))
+        print(pn.convert2basic(obj))
 
         obj = {
             'args': ({
@@ -149,7 +149,7 @@ class NameIt(unittest.TestCase):
             }, ),
             'kwargs': {}
         }
-        print(self.pn.convert2basic(obj))
+        print(pn.convert2basic(obj))
     # TODO:
     # def test_general_object(self):..
 

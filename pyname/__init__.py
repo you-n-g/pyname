@@ -21,7 +21,8 @@ HIST_PATH.mkdir(parents=True, exist_ok=True)
 ARG_SEP = ","
 LIMIT = 10
 MAX_LEN = 100
-UNIQUE_NEW_N = 5
+MAX_KEY_SIZE = 10  # the max number of keys to show in the name when the name is long and we only want to show MAX_KEY_SIZE unique key for the name
+NOT_APPEAR = "__NOT_APPEAR"  # if the key not appear in the previous object, then fill it with this value
 
 FLAT_SEP = '.'
 __version__ = '0.0.1.dev'
@@ -97,7 +98,7 @@ def convert2basic(obj):
         raise NotImplementedError(f"This type of input is not supported")
 
 
-def get_short_name(obj: dict, order_getter: Callable=None):
+def get_short_name(obj: dict, order_getter: Callable=None, max_key_size=None):
     """
     It is responsible for
     1) get a short name without conflicts (trying to be readable)
@@ -140,7 +141,7 @@ def get_short_name(obj: dict, order_getter: Callable=None):
             # otherwise, create the key
             new_dict[prefix] = value2str(obj[k])
             break
-    return ",".join(f"{_reverse(k)}={v}" for k, v in new_dict.items())
+    return ",".join(f"{_reverse(k)}={v}" for k, v in list(new_dict.items())[:max_key_size])
 
 
 class NameIt:
@@ -172,7 +173,7 @@ class NameIt:
 
         obj = flatten_obj(obj)
 
-        # if the name is short, just return it directly
+        # if the name is short (when including all keys), just return it directly
         name = get_short_name(obj)
         if len(name) < MAX_LEN:
             return name
@@ -183,35 +184,33 @@ class NameIt:
             prev_obj_l = [flatten_obj(po) for po in self.get_prev_obj_l(skip=skip)]  # skip the one we saved just now
             # only keep the important part of object
 
-            all_keys = set()
+            all_keys = set(obj.keys())
             for po in prev_obj_l:
                 all_keys = set(po.keys()) | all_keys
 
             prev_res = collections.defaultdict(set)
             for po in prev_obj_l:
                 for k in all_keys:
-                    prev_res[k].add(po.get(k, "__NOT_APPEAR"))
+                    prev_res[k].add(po.get(k, NOT_APPEAR))
 
             # FIXME: If long value is encountered, it may result in long name
             # Solution:
             # - find the unique part of the value
             # - create a short representation based on the unique part
             uniq_info = {}
-            uniq_n_remain = UNIQUE_NEW_N
             for k, v in obj.items():
-                if k not in prev_res and uniq_n_remain > 0:
-                    uniq_n_remain -= 1
-                    uniq_info[k] = v
-                else:
-                    # The new value is totally different from previous
+                # The new value is totally different from previous
+                if len(prev_obj_l) > 0:
                     if len(prev_res[k]) > 1 or len(prev_res[k]) == 1 and next(iter(prev_res[k])) != v:
                         uniq_info[k] = v
+                else:
+                    uniq_info[k] = v
             if len(uniq_info) > 0:
                 # Try to pick import part and put it a first;
                 key_order = {}
                 for k in uniq_info.keys():
-                    key_order[k] = tuple(k in po and po[k] == uniq_info[k] for po in prev_obj_l)
-                return get_short_name(uniq_info, order_getter=key_order.get)
+                    key_order[k] = tuple(po.get(k, NOT_APPEAR) == uniq_info[k] for po in prev_obj_l)
+                return get_short_name(uniq_info, order_getter=key_order.get, max_key_size=MAX_KEY_SIZE)
             skip += 1
 
     def get_prev_obj_l(self, skip=0):
