@@ -40,6 +40,16 @@ class NameIt(unittest.TestCase):
         expect = "9=b,70=a,71=a,72=a,73=a,74=a"
         self.check_same(expect, self.pn(info))
 
+        # if the name length is 1, then use it instead of sticking to min_len=2
+        info["x"] = "b"
+        expect = "x=b,99=b,70=a,71=a,72=a,73=a,74=a"
+        self.check_same(expect, self.pn(info))
+
+        # this "x" should still rank first
+        info["x"] = "b"
+        expect = "x=b,99=b,70=a,71=a,72=a,73=a,74=a"
+        self.check_same(expect, self.pn(info))
+
     def test_shorten_list(self):
         self.pn.clear_prev_obj_l()
         print(self.pn({"a": [1, 2]}))

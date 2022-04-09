@@ -24,6 +24,7 @@ MAX_LEN = 100
 UNIQUE_NEW_N = 5
 
 FLAT_SEP = '.'
+__version__ = '0.0.1.dev'
 
 
 def flatten_obj(obj, parent_key="", sep=FLAT_SEP, squeeze=True) -> dict:
@@ -67,6 +68,7 @@ def flatten_obj(obj, parent_key="", sep=FLAT_SEP, squeeze=True) -> dict:
 
 def is_leaf_node(obj):
     return isinstance(obj, (str, int, float, bool)) or obj is None
+
 
 def convert_leaf_node(obj):
     if is_leaf_node(obj):
@@ -119,7 +121,7 @@ def get_short_name(obj: dict, order_getter: Callable=None):
     new_dict = collections.OrderedDict()
     min_len = 2
     for k, k_rev in zip(keys, keys_rev):
-        for i in range(min(min_len, len(k_rev)), len(k_rev) + 1):  # TODO: make it smarter
+        for i in range(min(min_len, len(k_rev.split(".")[0])), len(k_rev) + 1):  # TODO: make it smarter
             # 1) Don't stop at separate
             if k_rev[i - 1] == ".":
                 continue
@@ -181,10 +183,14 @@ class NameIt:
             prev_obj_l = [flatten_obj(po) for po in self.get_prev_obj_l(skip=skip)]  # skip the one we saved just now
             # only keep the important part of object
 
+            all_keys = set()
+            for po in prev_obj_l:
+                all_keys = set(po.keys()) | all_keys
+
             prev_res = collections.defaultdict(set)
             for po in prev_obj_l:
-                for k, v in po.items():
-                    prev_res[k].add(v)
+                for k in all_keys:
+                    prev_res[k].add(po.get(k, "__NOT_APPEAR"))
 
             # FIXME: If long value is encountered, it may result in long name
             # Solution:
