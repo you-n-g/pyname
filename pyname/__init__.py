@@ -14,6 +14,7 @@ from pathlib import Path
 import collections
 from typing import Callable
 from uuid import uuid4
+import logging
 import os
 
 HIST_PATH = Path("~/.pyname/").expanduser()
@@ -22,6 +23,7 @@ ARG_SEP = ","
 LIMIT = 10
 MAX_LEN = 100
 MAX_KEY_SIZE = 10  # the max number of keys to show in the name when the name is long and we only want to show MAX_KEY_SIZE unique key for the name
+MAX_VALUE_LEN = 20  # the max length for the value when naming
 NOT_APPEAR = "__NOT_APPEAR"  # if the key not appear in the previous object, then fill it with this value
 
 FLAT_SEP = '.'
@@ -95,10 +97,11 @@ def convert2basic(obj):
     elif isinstance(obj, argparse.Namespace):
         return {"args": convert2basic(obj._get_args()), "kwargs": convert2basic(dict(obj._get_kwargs()))}
     else:
-        raise NotImplementedError(f"This type of input is not supported")
+        logging.info(f"{obj} with type {type(obj)} can't be handled. So it is converted to string")
+        return str(obj)
 
 
-def get_short_name(obj: dict, order_getter: Callable=None, max_key_size=None):
+def get_short_name(obj: dict, order_getter: Callable=None, max_key_size=None, max_value_len=MAX_VALUE_LEN):
     """
     It is responsible for
     1) get a short name without conflicts (trying to be readable)
@@ -112,9 +115,10 @@ def get_short_name(obj: dict, order_getter: Callable=None, max_key_size=None):
     def value2str(v):
         # 2) converting the values to str
         if isinstance(v, (list, tuple)):
-            return ",".join(str(i) for i in v)
+            res = ",".join(str(i) for i in v)
         else:
-            return str(v)
+            res = str(v)
+        return res[:max_value_len]
 
     keys = list(obj)
     keys.sort(key=lambda k: (None if order_getter is None else order_getter(k), k.count(ARG_SEP), k.split()))  # short names come first
